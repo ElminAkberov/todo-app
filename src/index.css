@@ -24,3 +24,13 @@ body {
   color: var(--color-text);
   min-height: 100vh;
 }
+
+/* Priority accents — extend the existing token set. */
+:root {
+  --color-priority-high: #e05c5c;
+  --color-priority-medium: #e0a03c;
+  --color-priority-low: #5cb85c;
+  --color-priority-high-bg: #fdecec;
+  --color-priority-medium-bg: #fdf5e7;
+  --color-priority-low-bg: #ecf7ec;
+}

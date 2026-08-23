@@ -1,101 +1,124 @@
-import React, { Component } from 'react'
-import { Todo } from '../types'
+import { Check, Pencil, X } from 'lucide-react'
 
-// TASK: Rewrite this class component as a functional component using hooks:
-// - state: { isEditing, editValue } → useState
-// - handleDoubleClick, handleEditChange, handleEditSubmit, handleKeyDown become const functions
-// - Remove render(), return JSX directly
-// - Bonus: use useRef on the edit input and call .focus() inside useEffect when isEditing turns true
+import useTodoEdit from '@/hooks/useTodoEdit'
+import PrioritySelect, { PriorityBadge } from '@/components/ui/PrioritySelect'
+import Spinner from '@/components/ui/Spinner'
+import type { Todo, TodoPriority } from '@/services/api/todos/todos.types'
 
 interface TodoItemProps {
   todo: Todo
-  onToggle: (id: number) => void
-  onDelete: (id: number) => void
-  onEdit: (id: number, text: string) => void
+  onToggle: (id: string) => void
+  onDelete: (id: string) => void
+  onEdit: (id: string, patch: { title?: string; priority?: TodoPriority }) => void
+  /**
+   * A toggle or edit for this row is in flight. Delete has no pending state:
+   * the row is removed from the cache optimistically and unmounts at once.
+   */
+  isPending?: boolean
 }
 
-interface TodoItemState {
-  isEditing: boolean
-  editValue: string
-}
+function TodoItem({ todo, onToggle, onDelete, onEdit, isPending = false }: TodoItemProps) {
+  const {
+    isEditing,
+    editValue,
+    editPriority,
+    setEditPriority,
+    inputRef,
+    startEditing,
+    submitEdit,
+    cancelEdit,
+    handleChange,
+    handleKeyDown,
+  } = useTodoEdit(todo.title, todo.priority, onEdit, todo.id)
 
-class TodoItem extends Component<TodoItemProps, TodoItemState> {
-  constructor(props: TodoItemProps) {
-    super(props)
-    this.state = {
-      isEditing: false,
-      editValue: '',
-    }
-  }
+  const className = [
+    'todo-item',
+    todo.completed && 'todo-item--completed',
+    isPending && 'todo-item--pending',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
-  handleDoubleClick = () => {
-    this.setState({ isEditing: true, editValue: this.props.todo.text })
-  }
+  return (
+    <li className={className}>
+      <input
+        className="todo-item__checkbox"
+        type="checkbox"
+        checked={todo.completed}
+        onChange={() => onToggle(todo.id)}
+        aria-label={todo.completed ? 'Mark as active' : 'Mark as completed'}
+      />
 
-  handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ editValue: e.target.value })
-  }
-
-  handleEditSubmit = () => {
-    const trimmed = this.state.editValue.trim()
-    if (trimmed) {
-      this.props.onEdit(this.props.todo.id, trimmed)
-    }
-    this.setState({ isEditing: false })
-  }
-
-  handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') this.handleEditSubmit()
-    if (e.key === 'Escape') this.setState({ isEditing: false })
-  }
-
-  handleToggle = () => {
-    this.props.onToggle(this.props.todo.id)
-  }
-
-  handleDelete = () => {
-    this.props.onDelete(this.props.todo.id)
-  }
-
-  render() {
-    const { todo } = this.props
-    const { isEditing, editValue } = this.state
-
-    return (
-      <li className={`todo-item${todo.completed ? ' todo-item--completed' : ''}`}>
-        <input
-          className="todo-item__checkbox"
-          type="checkbox"
-          checked={todo.completed}
-          onChange={this.handleToggle}
-        />
-
-        {isEditing ? (
+      {isEditing ? (
+        <>
           <input
+            ref={inputRef}
             className="todo-item__edit-input"
             type="text"
             value={editValue}
-            onChange={this.handleEditChange}
-            onBlur={this.handleEditSubmit}
-            onKeyDown={this.handleKeyDown}
-            autoFocus
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
           />
-        ) : (
+          <PrioritySelect value={editPriority} onChange={setEditPriority} size="small" />
+          <button
+            className="todo-item__save-btn"
+            onClick={submitEdit}
+            type="button"
+            aria-label="Save changes"
+            title="Save"
+          >
+            <Check size={15} aria-hidden="true" />
+          </button>
+          <button
+            className="todo-item__cancel-btn"
+            onClick={cancelEdit}
+            type="button"
+            aria-label="Cancel editing"
+            title="Cancel"
+          >
+            <X size={15} aria-hidden="true" />
+          </button>
+        </>
+      ) : (
+        <>
           <span
             className="todo-item__text"
-            onDoubleClick={this.handleDoubleClick}
+            onDoubleClick={startEditing}
             title="Double-click to edit"
           >
-            {todo.text}
+            {todo.title}
           </span>
-        )}
-
-        <button className="todo-item__delete-btn" onClick={this.handleDelete}>
-          ✕
-        </button>
-      </li>
-    )
-  }
+          <PriorityBadge priority={todo.priority} />
+          {isPending ? (
+            <span className="todo-item__status">
+              <Spinner size="small" label="Saving" />
+            </span>
+          ) : (
+            <div className="todo-item__actions">
+              <button
+                className="todo-item__action todo-item__action--edit"
+                onClick={startEditing}
+                type="button"
+                aria-label={`Edit ${todo.title}`}
+                title="Edit"
+              >
+                <Pencil size={15} aria-hidden="true" />
+              </button>
+              <button
+                className="todo-item__action todo-item__action--delete"
+                onClick={() => onDelete(todo.id)}
+                type="button"
+                aria-label={`Delete ${todo.title}`}
+                title="Delete"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </li>
+  )
 }
 
 export default TodoItem

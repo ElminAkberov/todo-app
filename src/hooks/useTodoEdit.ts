@@ -1,30 +1,44 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { TodoPriority } from '@/services/api/todos/todos.types'
 
+interface EditPatch {
+  title?: string
+  priority?: TodoPriority
+}
+
+/**
+ * Inline-edit state for a single todo row.
+ * `onEdit` receives only the fields that actually changed.
+ */
 function useTodoEdit(
-  originalText: string,
-  onEdit: (id: number, text: string) => void,
-  id: number
+  originalTitle: string,
+  originalPriority: TodoPriority,
+  onEdit: (id: string, patch: EditPatch) => void,
+  id: string
 ) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
+  const [editPriority, setEditPriority] = useState<TodoPriority>(originalPriority)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus()
-    }
+    if (isEditing) inputRef.current?.focus()
   }, [isEditing])
 
   const startEditing = () => {
     setIsEditing(true)
-    setEditValue(originalText)
+    setEditValue(originalTitle)
+    setEditPriority(originalPriority)
   }
 
   const submitEdit = () => {
     const trimmed = editValue.trim()
-    if (trimmed) {
-      onEdit(id, trimmed)
-    }
+    const patch: EditPatch = {}
+    if (trimmed && trimmed !== originalTitle) patch.title = trimmed
+    if (editPriority !== originalPriority) patch.priority = editPriority
+
+    // The API rejects an empty patch with 400 "No fields to update".
+    if (Object.keys(patch).length > 0) onEdit(id, patch)
     setIsEditing(false)
   }
 
@@ -44,6 +58,8 @@ function useTodoEdit(
   return {
     isEditing,
     editValue,
+    editPriority,
+    setEditPriority,
     inputRef,
     startEditing,
     submitEdit,

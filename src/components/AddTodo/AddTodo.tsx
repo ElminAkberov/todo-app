@@ -1,86 +1,85 @@
-import React, { Component } from 'react'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
+import PrioritySelect from '@/components/ui/PrioritySelect'
+import type { TodoPriority } from '@/services/api/todos/todos.types'
 
 const MAX_LENGTH = 100
 
-// TASK: Rewrite this class component as a functional component using hooks:
-// - state: { value, error } → two useState calls (or one with an object)
-// - handleChange and handleSubmit become regular const functions
-// - Remove render(), return JSX directly
-// - Note: error should reset when the user starts typing again
-
 interface AddTodoProps {
-  onAdd: (text: string) => void
+  onAdd: (title: string, priority: TodoPriority) => Promise<void>
+  isSubmitting?: boolean
+  /** Server-side failure (e.g. 409 duplicate title) surfaced under the input. */
+  serverError?: string | null
 }
 
-interface AddTodoState {
-  value: string
-  error: string | null
-}
+function AddTodo({ onAdd, isSubmitting = false, serverError = null }: AddTodoProps) {
+  const [value, setValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [priority, setPriority] = useState<TodoPriority>('MEDIUM')
 
-class AddTodo extends Component<AddTodoProps, AddTodoState> {
-  constructor(props: AddTodoProps) {
-    super(props)
-    this.state = {
-      value: '',
-      error: null,
-    }
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value)
+    setError(null)
   }
 
-  handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ value: e.target.value, error: null })
-  }
-
-  handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const { value } = this.state
     const trimmed = value.trim()
 
     if (!trimmed) {
-      this.setState({ error: 'Task cannot be empty.' })
+      setError('Task cannot be empty.')
       return
     }
     if (trimmed.length > MAX_LENGTH) {
-      this.setState({ error: `Max ${MAX_LENGTH} characters.` })
+      setError(`Max ${MAX_LENGTH} characters.`)
       return
     }
 
-    this.props.onAdd(trimmed)
-    this.setState({ value: '', error: null })
+    try {
+      await onAdd(trimmed, priority)
+      // Only clear on success, so a rejected title is not lost.
+      setValue('')
+      setError(null)
+      setPriority('MEDIUM')
+    } catch {
+      // The parent reports the failure through serverError.
+    }
   }
 
-  render() {
-    const { value, error } = this.state
-    const remaining = MAX_LENGTH - value.length
-    const isOverLimit = remaining < 0
+  const remaining = MAX_LENGTH - value.length
+  const isOverLimit = remaining < 0
+  const shownError = error ?? serverError
 
-    return (
-      <div className="add-todo-wrapper">
-        <form className="add-todo" onSubmit={this.handleSubmit}>
-          <input
-            className={`add-todo__input${error ? ' add-todo__input--error' : ''}`}
-            type="text"
-            value={value}
-            onChange={this.handleChange}
-            placeholder="What needs to be done?"
-            autoFocus
-          />
-          <button className="add-todo__btn" type="submit">
-            Add
-          </button>
-        </form>
+  return (
+    <div className="add-todo-wrapper">
+      <form className="add-todo" onSubmit={handleSubmit}>
+        <input
+          className={`add-todo__input${shownError ? ' add-todo__input--error' : ''}`}
+          type="text"
+          value={value}
+          onChange={handleChange}
+          placeholder="What needs to be done?"
+          disabled={isSubmitting}
+          autoFocus
+        />
+        <PrioritySelect value={priority} onChange={setPriority} />
+        <button className="add-todo__btn" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Adding…' : 'Add'}
+        </button>
+      </form>
 
-        <div className="add-todo__meta">
-          {error ? (
-            <span className="add-todo__error">{error}</span>
-          ) : (
-            <span className={`add-todo__counter${isOverLimit ? ' add-todo__counter--over' : ''}`}>
-              {remaining} chars left
-            </span>
-          )}
-        </div>
+      <div className="add-todo__meta">
+        {shownError ? (
+          <span className="add-todo__error">{shownError}</span>
+        ) : (
+          <span
+            className={`add-todo__counter${isOverLimit ? ' add-todo__counter--over' : ''}`}
+          >
+            {remaining} chars left
+          </span>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 }
 
 export default AddTodo
