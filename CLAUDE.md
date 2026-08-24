@@ -27,7 +27,7 @@ Running the backend (required for anything past the login screen):
 cd ../backend && npm run start:dev     # :3000, needs the Postgres in its .env
 ```
 
-The dev server must be on **port 5173** — the backend's CORS allowlist names that exact origin, and Vite silently falls back to 5174 if it is occupied, which breaks auth with opaque CORS errors. `VITE_API_URL` overrides the API origin (default `http://localhost:3000`).
+The dev server must be on **port 5173** — the backend's CORS allowlist names that exact origin, and Vite silently falls back to 5174 if it is occupied, which breaks auth with opaque CORS errors. `VITE_API_URL` overrides the API origin (default `https://todo-app-backend-app.up.railway.app`).
 
 ## Layout
 
